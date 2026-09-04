@@ -14,6 +14,7 @@ html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at 
 a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; }
 .container { width: min(1160px, calc(100% - 32px)); margin: 0 auto; }
+.container.narrow { width: min(680px, calc(100% - 32px)); }
 .nav { display:flex; align-items:center; justify-content:space-between; padding:24px 0; }
 .brand { font-weight:900; letter-spacing:.4px; font-size:22px; }
 .brand span { color: var(--accent); }
@@ -34,6 +35,11 @@ button, input, select { font: inherit; }
 .form { display:grid; gap:12px; }
 .form.two { grid-template-columns:1fr 1fr; }
 .form.three { grid-template-columns:repeat(3,1fr); }
+.form-gap { gap:16px; }
+.row { display:flex; align-items:center; }
+.between { justify-content:space-between; }
+.wrap { flex-wrap:wrap; }
+.gap { gap:14px; }
 label { display:grid; gap:7px; color:var(--muted); font-size:14px; }
 input, select { width:100%; background:#091728; color:var(--text); border:1px solid var(--line); border-radius:11px; padding:11px 12px; outline:none; }
 input:focus, select:focus { border-color:rgba(81,215,180,.7); box-shadow:0 0 0 3px rgba(81,215,180,.08); }
@@ -47,6 +53,8 @@ th { color:var(--muted); font-weight:600; }
 .login-card { width:min(440px,100%); }
 .login-card h1 { margin:0 0 8px; }
 .notice { padding:12px 14px; border-radius:12px; border:1px solid rgba(255,191,71,.25); background:rgba(255,191,71,.08); color:#ffd888; margin-bottom:16px; }
+.notice.success { border-color:rgba(81,215,180,.28); background:rgba(81,215,180,.08); color:#9ff4dd; }
+.notice.danger { border-color:rgba(255,111,121,.25); background:rgba(255,111,121,.08); color:#ff9da4; }
 .dashboard { padding-bottom:70px; }
 .dashboard-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:28px 0; }
 .stack { display:grid; gap:18px; }
