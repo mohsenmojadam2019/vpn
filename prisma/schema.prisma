@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum NodeStatus {
+  UNKNOWN
+  ONLINE
+  DEGRADED
+  OFFLINE
+}
+
+model Node {
+  id            String     @id @default(cuid())
+  name          String
+  country       String?
+  host          String
+  port          Int        @default(443)
+  transport     String     @default("raw")
+  security      String     @default("reality")
+  flow          String?    @default("xtls-rprx-vision")
+  sni           String?
+  fingerprint   String?    @default("chrome")
+  publicKey     String?
+  shortId       String?
+  path          String?
+  serviceName   String?
+  enabled       Boolean    @default(true)
+  priority      Int        @default(100)
+  status        NodeStatus @default(UNKNOWN)
+  latencyMs     Int?
+  lastCheckedAt DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([enabled, priority])
+}
+
+model Plan {
+  id          String         @id @default(cuid())
+  name        String
+  durationDays Int
+  trafficGb   Int?
+  priceTomans BigInt?
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String?        @unique
+  phone         String?        @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id               String    @id @default(cuid())
+  token            String    @unique
+  vlessUuid        String    @unique
+  customerId       String?
+  planId           String?
+  enabled          Boolean   @default(true)
+  expiresAt        DateTime
+  trafficLimitBytes BigInt?
+  trafficUsedBytes  BigInt    @default(0)
+  note             String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  plan             Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([enabled, expiresAt])
+}
