@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
   const session = await requireAdmin();
-  const [nodes, plans, customers, subscriptions] = await Promise.all([
+  const [nodes, plans, customers, subscriptions, pendingOrders] = await Promise.all([
     db.node.findMany({ orderBy: [{ enabled: 'desc' }, { priority: 'asc' }, { createdAt: 'desc' }] }),
     db.plan.findMany({ orderBy: { createdAt: 'desc' } }),
     db.customer.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
@@ -25,6 +25,7 @@ export default async function AdminPage() {
       orderBy: { createdAt: 'desc' },
       take: 100,
     }),
+    db.order.count({ where: { status: 'PENDING' } }),
   ]);
   const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '');
 
@@ -37,6 +38,7 @@ export default async function AdminPage() {
             <div className="muted">{session.email}</div>
           </div>
           <div className="actions">
+            <Link className="button" href="/admin/orders">سفارش‌ها {pendingOrders ? `(${pendingOrders})` : ''}</Link>
             <Link className="button secondary" href="/">مشاهده سایت</Link>
             <form action={logoutAction}><button className="button secondary" type="submit">خروج</button></form>
           </div>
@@ -45,7 +47,7 @@ export default async function AdminPage() {
         <section className="grid section">
           <div className="card"><div className="muted">Node فعال</div><div className="metric">{nodes.filter(n => n.enabled).length}</div></div>
           <div className="card"><div className="muted">اشتراک فعال</div><div className="metric">{subscriptions.filter(s => s.enabled && s.expiresAt > new Date()).length}</div></div>
-          <div className="card"><div className="muted">مشتری</div><div className="metric">{customers.length}</div></div>
+          <div className="card"><div className="muted">سفارش منتظر</div><div className="metric">{pendingOrders}</div></div>
         </section>
 
         <div className="stack">
@@ -115,7 +117,7 @@ export default async function AdminPage() {
               </form>
             </div>
             <div className="card">
-              <h2>صدور اشتراک</h2>
+              <h2>صدور اشتراک دستی</h2>
               <form action={createSubscriptionAction} className="form">
                 <label>مشتری<select name="customerId" defaultValue=""><option value="">بدون مشتری</option>{customers.map(c => <option key={c.id} value={c.id}>{c.name || c.email || c.phone || c.id}</option>)}</select></label>
                 <label>پلن<select name="planId" required defaultValue=""><option value="" disabled>انتخاب پلن</option>{plans.filter(p => p.enabled).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
