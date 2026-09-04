@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -21,7 +21,7 @@ enum OrderStatus {
 }
 
 model Node {
-  id            String     @id @default(cuid())
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
   name          String
   country       String?
   host          String
@@ -47,7 +47,7 @@ model Node {
 }
 
 model Plan {
-  id            String         @id @default(cuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   name          String
   durationDays  Int
   trafficGb     Int?
@@ -60,7 +60,7 @@ model Plan {
 }
 
 model Customer {
-  id            String         @id @default(cuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
   email         String?        @unique
   phone         String?        @unique
@@ -71,11 +71,11 @@ model Customer {
 }
 
 model Subscription {
-  id                String    @id @default(cuid())
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
   token             String    @unique
   vlessUuid         String    @unique
-  customerId        String?
-  planId            String?
+  customerId        String?   @db.ObjectId
+  planId            String?   @db.ObjectId
   enabled           Boolean   @default(true)
   expiresAt         DateTime
   trafficLimitBytes BigInt?
@@ -91,12 +91,12 @@ model Subscription {
 }
 
 model Order {
-  id             String        @id @default(cuid())
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
   code           String        @unique
   status         OrderStatus   @default(PENDING)
-  planId         String
-  customerId     String?
-  subscriptionId String?       @unique
+  planId         String        @db.ObjectId
+  customerId     String?       @db.ObjectId
+  subscriptionId String?       @unique @db.ObjectId
   customerName   String?
   email          String?
   phone          String
