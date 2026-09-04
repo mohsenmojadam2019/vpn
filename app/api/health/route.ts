@@ -20,7 +20,7 @@ export async function GET() {
 
   let databaseReady = false;
   try {
-    await db.$queryRaw`SELECT 1`;
+    await db.node.count();
     databaseReady = true;
   } catch {
     databaseReady = false;
