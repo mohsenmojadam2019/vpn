@@ -13,6 +13,7 @@ REALITY_SERVER_NAME="${REALITY_SERVER_NAME:-www.microsoft.com}"
 REALITY_DEST="${REALITY_DEST:-${REALITY_SERVER_NAME}:443}"
 XRAY_PORT="${XRAY_PORT:-443}"
 SHORT_ID="${SHORT_ID:-$(openssl rand -hex 8)}"
+XRAY_CONFIG="/usr/local/etc/xray/config.json"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
@@ -36,8 +37,8 @@ if [[ -z "${PRIVATE_KEY}" || -z "${PUBLIC_KEY}" ]]; then
   exit 1
 fi
 
-install -d -m 0755 /etc/xray /opt/paydar
-cat >/etc/xray/config.json <<JSON
+install -d -m 0755 /usr/local/etc/xray /usr/local/lib/paydar /etc/paydar
+cat >"${XRAY_CONFIG}" <<JSON
 {
   "log": { "loglevel": "warning" },
   "inbounds": [
@@ -71,22 +72,22 @@ cat >/etc/xray/config.json <<JSON
 }
 JSON
 
-${XRAY_BIN} run -test -config /etc/xray/config.json
+${XRAY_BIN} run -test -config "${XRAY_CONFIG}"
 
-curl -fsSL "https://raw.githubusercontent.com/mohsenmojadam2019/vpn/main/agent/paydar_xray_sync.py" -o /opt/paydar/paydar_xray_sync.py
-chmod 0755 /opt/paydar/paydar_xray_sync.py
+curl -fsSL "https://raw.githubusercontent.com/mohsenmojadam2019/vpn/main/agent/paydar_xray_sync.py" -o /usr/local/lib/paydar/paydar_xray_sync.py
+chmod 0755 /usr/local/lib/paydar/paydar_xray_sync.py
 curl -fsSL "https://raw.githubusercontent.com/mohsenmojadam2019/vpn/main/agent/paydar-agent.service" -o /etc/systemd/system/paydar-agent.service
 curl -fsSL "https://raw.githubusercontent.com/mohsenmojadam2019/vpn/main/agent/paydar-agent.timer" -o /etc/systemd/system/paydar-agent.timer
 
-cat >/etc/paydar-agent.env <<ENV
+cat >/etc/paydar/agent.env <<ENV
 PAYDAR_CONTROL_URL=${PAYDAR_CONTROL_URL%/}
 PAYDAR_AGENT_SECRET=${PAYDAR_AGENT_SECRET}
-XRAY_CONFIG=/etc/xray/config.json
+XRAY_CONFIG=${XRAY_CONFIG}
 XRAY_INBOUND_TAG=paydar-vless
 XRAY_BIN=${XRAY_BIN}
 XRAY_FLOW=xtls-rprx-vision
 ENV
-chmod 0600 /etc/paydar-agent.env
+chmod 0600 /etc/paydar/agent.env
 
 systemctl daemon-reload
 systemctl enable --now xray
