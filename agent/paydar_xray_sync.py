@@ -9,7 +9,7 @@ import urllib.request
 
 CONTROL_URL = os.environ.get("PAYDAR_CONTROL_URL", "").rstrip("/")
 AGENT_SECRET = os.environ.get("PAYDAR_AGENT_SECRET", "")
-XRAY_CONFIG = os.environ.get("XRAY_CONFIG", "/etc/xray/config.json")
+XRAY_CONFIG = os.environ.get("XRAY_CONFIG", "/usr/local/etc/xray/config.json")
 XRAY_INBOUND_TAG = os.environ.get("XRAY_INBOUND_TAG", "paydar-vless")
 XRAY_BIN = os.environ.get("XRAY_BIN", "/usr/local/bin/xray")
 XRAY_FLOW = os.environ.get("XRAY_FLOW", "xtls-rprx-vision")
@@ -26,7 +26,7 @@ def fetch_users():
 
     request = urllib.request.Request(
         f"{CONTROL_URL}/api/agent/users",
-        headers={"Authorization": f"Bearer {AGENT_SECRET}", "User-Agent": "paydar-node-agent/0.1"},
+        headers={"Authorization": f"Bearer {AGENT_SECRET}", "User-Agent": "paydar-node-agent/0.2"},
     )
     try:
         with urllib.request.urlopen(request, timeout=15) as response:

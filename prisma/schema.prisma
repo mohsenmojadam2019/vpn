@@ -14,6 +14,12 @@ enum NodeStatus {
   OFFLINE
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
 model Node {
   id            String     @id @default(cuid())
   name          String
@@ -41,15 +47,16 @@ model Node {
 }
 
 model Plan {
-  id          String         @id @default(cuid())
-  name        String
-  durationDays Int
-  trafficGb   Int?
-  priceTomans BigInt?
-  enabled     Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id            String         @id @default(cuid())
+  name          String
+  durationDays  Int
+  trafficGb     Int?
+  priceTomans   BigInt?
+  enabled       Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   subscriptions Subscription[]
+  orders        Order[]
 }
 
 model Customer {
@@ -60,23 +67,46 @@ model Customer {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   subscriptions Subscription[]
+  orders        Order[]
 }
 
 model Subscription {
-  id               String    @id @default(cuid())
-  token            String    @unique
-  vlessUuid        String    @unique
-  customerId       String?
-  planId           String?
-  enabled          Boolean   @default(true)
-  expiresAt        DateTime
+  id                String    @id @default(cuid())
+  token             String    @unique
+  vlessUuid         String    @unique
+  customerId        String?
+  planId            String?
+  enabled           Boolean   @default(true)
+  expiresAt         DateTime
   trafficLimitBytes BigInt?
   trafficUsedBytes  BigInt    @default(0)
-  note             String?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  plan             Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  customer          Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  plan              Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  order             Order?
 
   @@index([enabled, expiresAt])
+}
+
+model Order {
+  id             String        @id @default(cuid())
+  code           String        @unique
+  status         OrderStatus   @default(PENDING)
+  planId         String
+  customerId     String?
+  subscriptionId String?       @unique
+  customerName   String?
+  email          String?
+  phone          String
+  amountTomans   BigInt?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  plan           Plan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([phone])
 }

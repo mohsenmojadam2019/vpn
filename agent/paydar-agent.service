@@ -13,7 +13,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=full
-ReadWritePaths=/etc/xray
+ReadWritePaths=/usr/local/etc/xray /etc/xray
 
 [Install]
 WantedBy=multi-user.target
