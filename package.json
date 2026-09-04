@@ -1,14 +1,15 @@
 {
   "name": "paydar-control-plane",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "typecheck": "prisma generate && tsc --noEmit",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "admin:hash": "node scripts/generate-admin-hash.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.14.0",
