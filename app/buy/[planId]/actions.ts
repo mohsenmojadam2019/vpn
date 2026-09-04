@@ -26,17 +26,17 @@ export async function createOrderAction(planId: string, formData: FormData) {
     throw new Error('ایمیل معتبر نیست.');
   }
 
-  const plan = await db.plan.findFirst({
-    where: { id: planId, enabled: true },
-  });
-
+  const plan = await db.plan.findFirst({ where: { id: planId, enabled: true } });
   if (!plan) throw new Error('پلن فعال پیدا نشد.');
 
-  let code = '';
+  let code: string | null = null;
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    code = randomBytes(6).toString('hex').toUpperCase();
-    const exists = await db.order.findUnique({ where: { code } });
-    if (!exists) break;
+    const candidate = randomBytes(12).toString('hex').toUpperCase();
+    const exists = await db.order.findUnique({ where: { code: candidate } });
+    if (!exists) {
+      code = candidate;
+      break;
+    }
   }
 
   if (!code) throw new Error('ساخت کد سفارش ناموفق بود.');
