@@ -19,6 +19,44 @@ function int(formData: FormData, key: string, fallback: number) {
   return Number.isFinite(value) ? Math.trunc(value) : fallback;
 }
 
+function nodeData(formData: FormData) {
+  const name = text(formData, 'name');
+  const host = text(formData, 'host');
+  const transport = text(formData, 'transport') || 'raw';
+  const security = text(formData, 'security') || 'reality';
+  const port = int(formData, 'port', 443);
+  const sni = text(formData, 'sni');
+  const publicKey = text(formData, 'publicKey');
+  const shortId = text(formData, 'shortId');
+
+  if (!name || !host || /[\s/]/.test(host) || port < 1 || port > 65535 || !transports.has(transport) || !securities.has(security)) {
+    throw new Error('Invalid node configuration.');
+  }
+  if (security === 'reality' && (!sni || !publicKey || !shortId)) {
+    throw new Error('REALITY requires SNI, public key and short ID.');
+  }
+  if (security === 'tls' && !sni) {
+    throw new Error('TLS requires SNI.');
+  }
+
+  return {
+    name,
+    host,
+    port,
+    country: text(formData, 'country'),
+    transport,
+    security,
+    flow: transport === 'raw' ? text(formData, 'flow') : null,
+    sni,
+    fingerprint: text(formData, 'fingerprint') || 'chrome',
+    publicKey: security === 'reality' ? publicKey : null,
+    shortId: security === 'reality' ? shortId : null,
+    path: transport === 'xhttp' ? (text(formData, 'path') || '/') : null,
+    serviceName: transport === 'grpc' ? text(formData, 'serviceName') : null,
+    priority: int(formData, 'priority', 100),
+  };
+}
+
 export async function logoutAction() {
   await clearAdminSession();
   redirect('/login');
@@ -26,70 +64,13 @@ export async function logoutAction() {
 
 export async function createNodeAction(formData: FormData) {
   await requireAdmin();
-  const name = text(formData, 'name');
-  const host = text(formData, 'host');
-  const transport = text(formData, 'transport') || 'raw';
-  const security = text(formData, 'security') || 'reality';
-  const port = int(formData, 'port', 443);
-
-  if (!name || !host || port < 1 || port > 65535 || !transports.has(transport) || !securities.has(security)) {
-    throw new Error('Invalid node configuration.');
-  }
-
-  await db.node.create({
-    data: {
-      name,
-      host,
-      port,
-      country: text(formData, 'country'),
-      transport,
-      security,
-      flow: text(formData, 'flow'),
-      sni: text(formData, 'sni'),
-      fingerprint: text(formData, 'fingerprint') || 'chrome',
-      publicKey: text(formData, 'publicKey'),
-      shortId: text(formData, 'shortId'),
-      path: text(formData, 'path'),
-      serviceName: text(formData, 'serviceName'),
-      priority: int(formData, 'priority', 100),
-    },
-  });
-
+  await db.node.create({ data: nodeData(formData) });
   revalidatePath('/admin');
 }
 
 export async function updateNodeAction(nodeId: string, formData: FormData) {
   await requireAdmin();
-  const name = text(formData, 'name');
-  const host = text(formData, 'host');
-  const transport = text(formData, 'transport') || 'raw';
-  const security = text(formData, 'security') || 'reality';
-  const port = int(formData, 'port', 443);
-
-  if (!name || !host || port < 1 || port > 65535 || !transports.has(transport) || !securities.has(security)) {
-    throw new Error('Invalid node configuration.');
-  }
-
-  await db.node.update({
-    where: { id: nodeId },
-    data: {
-      name,
-      host,
-      port,
-      country: text(formData, 'country'),
-      transport,
-      security,
-      flow: text(formData, 'flow'),
-      sni: text(formData, 'sni'),
-      fingerprint: text(formData, 'fingerprint') || 'chrome',
-      publicKey: text(formData, 'publicKey'),
-      shortId: text(formData, 'shortId'),
-      path: text(formData, 'path'),
-      serviceName: text(formData, 'serviceName'),
-      priority: int(formData, 'priority', 100),
-    },
-  });
-
+  await db.node.update({ where: { id: nodeId }, data: nodeData(formData) });
   revalidatePath('/admin');
   revalidatePath(`/admin/nodes/${nodeId}`);
 }
@@ -115,6 +96,7 @@ export async function createPlanAction(formData: FormData) {
   const rawPrice = text(formData, 'priceTomans');
 
   if (!name || durationDays < 1) throw new Error('Invalid plan.');
+  if (rawPrice && !/^\d+$/.test(rawPrice)) throw new Error('Invalid price.');
 
   await db.plan.create({
     data: {
