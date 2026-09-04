@@ -1,0 +1,19 @@
+[Unit]
+Description=Paydar Xray user sync
+After=network-online.target xray.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/paydar/agent.env
+ExecStart=/usr/local/lib/paydar/paydar_xray_sync.py
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/etc/xray
+
+[Install]
+WantedBy=multi-user.target
