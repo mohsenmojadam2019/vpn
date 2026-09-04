@@ -29,6 +29,22 @@ export async function createOrderAction(planId: string, formData: FormData) {
   const plan = await db.plan.findFirst({ where: { id: planId, enabled: true } });
   if (!plan) throw new Error('پلن فعال پیدا نشد.');
 
+  const recentCutoff = new Date(Date.now() - 10 * 60 * 1000);
+  const recentPending = await db.order.findFirst({
+    where: {
+      planId: plan.id,
+      phone,
+      status: 'PENDING',
+      createdAt: { gte: recentCutoff },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { code: true },
+  });
+
+  if (recentPending) {
+    redirect(`/orders/${recentPending.code}`);
+  }
+
   let code: string | null = null;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const candidate = randomBytes(12).toString('hex').toUpperCase();
