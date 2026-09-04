@@ -20,14 +20,14 @@ function endpointHost(host: string) {
 
 export function buildVlessUri(node: VlessNode, uuid: string) {
   const query = new URLSearchParams();
+  const security = node.security || 'reality';
   query.set('encryption', 'none');
-  query.set('security', node.security || 'reality');
+  query.set('security', security);
 
-  if (node.flow) query.set('flow', node.flow);
+  if (node.sni && (security === 'reality' || security === 'tls')) query.set('sni', node.sni);
+  if (node.fingerprint && (security === 'reality' || security === 'tls')) query.set('fp', node.fingerprint);
 
-  if (node.security === 'reality') {
-    if (node.sni) query.set('sni', node.sni);
-    if (node.fingerprint) query.set('fp', node.fingerprint);
+  if (security === 'reality') {
     if (node.publicKey) query.set('pbk', node.publicKey);
     if (node.shortId) query.set('sid', node.shortId);
     query.set('spx', '/');
@@ -45,6 +45,7 @@ export function buildVlessUri(node: VlessNode, uuid: string) {
       break;
     default:
       query.set('type', 'tcp');
+      if (node.flow) query.set('flow', node.flow);
       break;
   }
 
