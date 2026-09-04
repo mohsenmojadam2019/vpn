@@ -1,47 +1,51 @@
 # Paydar VPN Control Plane
 
-Paydar is a web control plane for managing VLESS nodes, customers, plans, and remote subscription links.
+Paydar is a web control plane for managing and selling multi-node VLESS subscriptions.
 
-> No Internet endpoint can honestly be guaranteed to be "never blocked" or "never disconnected". Paydar is designed around redundancy, replaceable nodes, health checks, per-customer credentials, and remote subscription updates so a failed node does not require rebuilding client apps or changing every customer's subscription URL.
+> No Internet endpoint can honestly be guaranteed to be "never blocked" or "never disconnected". Paydar is designed around replaceable nodes, health checks, stable subscription URLs, and per-customer credentials so one failed endpoint does not require rebuilding an app or changing every customer's subscription URL.
 
-## What is implemented
+## Implemented
 
-- Persian/RTL public website and admin dashboard
-- Admin login with email/password configured only through environment variables
+- Persian/RTL public storefront and admin dashboard
+- Admin login with environment-only email/password credentials
 - Signed HttpOnly admin session cookie
 - PostgreSQL/Prisma data model
 - VLESS node create/edit/enable/disable/delete
-- Node fields for RAW/TCP, XHTTP, gRPC, TLS/REALITY metadata
+- RAW/TCP, XHTTP, gRPC and TLS/REALITY metadata in the control plane
 - Customer and sales-plan management
+- Public plan checkout/order form
+- Public order tracking code
+- Admin order approval/cancellation
+- Automatic customer + UUID + subscription issuance when an order is approved
 - Per-subscription VLESS UUIDs
 - Expiration and optional traffic-limit metadata
 - Stable remote subscription URL per customer
 - Base64 VLESS subscription output plus raw-link format
 - TCP node health-check endpoint
 - Authenticated node-agent user feed
-- Optional Xray user-sync agent and systemd timer
+- Xray user-sync agent and systemd timer
+- One-command-style Xray/REALITY VPS bootstrap script
 
 ## Architecture
 
 ```text
-Browser/Admin
-    |
-    v
-Paydar Control Plane (Next.js)
-    |-- PostgreSQL
-    |-- /sub/<token>
-    |-- /api/cron/health
-    `-- /api/agent/users
-             |
-             v
-       Authorized VPN nodes
+Customer -> Storefront -> Order -> Admin approval -> Subscription URL
+                                      |
+Admin -> Paydar Control Plane --------+
+              |-- PostgreSQL
+              |-- /sub/<token>
+              |-- /api/cron/health
+              `-- /api/agent/users
+                        |
+                        v
+                Authorized Xray nodes
 ```
 
-The control plane and data plane are intentionally separate. Vercel can host the dashboard/subscription API, while VPN traffic must run on VPS/VM nodes that you control and are authorized to operate.
+The control plane and data plane are separate. Vercel can host the dashboard/subscription API. VLESS traffic must run on VPS/VM nodes you control.
 
 ## Local setup
 
-Requirements: Node.js 22+, PostgreSQL.
+Requirements: Node.js 22+ and PostgreSQL.
 
 ```bash
 npm install
@@ -65,23 +69,33 @@ CRON_SECRET
 NODE_AGENT_SECRET
 ```
 
-Generate the bcrypt password hash locally and keep the plaintext password and all secrets out of Git/GitHub.
+Generate the bcrypt password hash locally and keep plaintext passwords and all secrets out of GitHub. `AUTH_SECRET`, `CRON_SECRET`, and `NODE_AGENT_SECRET` must be independent random secrets.
 
-`AUTH_SECRET`, `CRON_SECRET`, and `NODE_AGENT_SECRET` should each be independent random secrets.
+## Storefront flow
+
+1. Admin creates a plan.
+2. The plan appears on the public site.
+3. Customer submits name/phone/email and receives an order code.
+4. Admin opens `/admin/orders` and approves the order.
+5. Paydar creates/fetches the customer, generates a unique VLESS UUID and token, applies plan expiration/traffic metadata, and marks the order paid/approved.
+6. The order status page displays the stable subscription URL.
+7. Node agents fetch active UUIDs and synchronize them to Xray.
+
+The current flow is payment-provider-neutral. A bank/payment gateway can later call the same approval/provisioning path after verified payment instead of manual admin approval.
 
 ## Vercel deployment
 
-1. Create a PostgreSQL database (for example a managed PostgreSQL service).
-2. Add all variables from `.env.example` to the Vercel project environment.
-3. Run `npx prisma db push` against the production database once during initial setup.
-4. Deploy the repository to Vercel.
+1. Create a managed PostgreSQL database.
+2. Add all `.env.example` variables to the Vercel project environment.
+3. Run `npx prisma db push` once against the production database.
+4. Deploy this repository.
 5. Set `NEXT_PUBLIC_BASE_URL` to the final HTTPS domain.
 
-Vercel is used for the control plane only. Do not route high-volume VPN data through Vercel Functions.
+Vercel is control plane only. Do not send VPN data-plane traffic through Vercel Functions.
 
 ## Subscription formats
 
-Default (base64 VLESS subscription):
+Default base64 subscription:
 
 ```text
 https://your-domain.example/sub/<token>
@@ -93,7 +107,7 @@ Raw VLESS links:
 https://your-domain.example/sub/<token>?format=raw
 ```
 
-Changing, disabling, or adding a node updates the next subscription refresh without changing the customer's token URL.
+Changing/disabling/adding a node updates the next subscription refresh while keeping the customer's subscription URL unchanged.
 
 ## Health checks
 
@@ -103,7 +117,7 @@ Changing, disabling, or adding a node updates the next subscription refresh with
 Authorization: Bearer <CRON_SECRET>
 ```
 
-It performs a TCP-connectivity check from the control-plane host. This is a basic availability signal, not proof that a node is reachable from every ISP or country.
+It performs TCP connectivity checks from the control-plane host. It is a basic availability signal, not proof that a node is reachable from every ISP/location.
 
 ## Node user synchronization
 
@@ -113,28 +127,51 @@ It performs a TCP-connectivity check from the control-plane host. This is a basi
 Authorization: Bearer <NODE_AGENT_SECRET>
 ```
 
-It returns only active, non-expired subscriptions that have not exceeded their configured traffic limit.
+It returns active, non-expired subscriptions that have not exceeded the configured traffic metadata.
 
-The included `agent/paydar_xray_sync.py` can synchronize this authorized-user list into an existing Xray inbound tagged `paydar-vless`. The script validates the generated Xray configuration before replacing the live file and keeps a backup.
+`agent/paydar_xray_sync.py` synchronizes the list into an Xray inbound tagged `paydar-vless`. It validates a temporary Xray config before replacing the live config and keeps a backup.
+
+## Bootstrap an Ubuntu/Debian Xray node
+
+On a fresh VPS, set the control-plane URL and a secret equal to the control plane's `NODE_AGENT_SECRET`, then run `ops/bootstrap-xray-node.sh` as root.
+
+Example environment names:
+
+```text
+PAYDAR_CONTROL_URL=https://panel.example.com
+PAYDAR_AGENT_SECRET=<same value as NODE_AGENT_SECRET>
+REALITY_SERVER_NAME=<your chosen TLS server name>
+REALITY_DEST=<server-name>:443
+XRAY_PORT=443
+```
+
+The bootstrap script:
+
+- installs Xray using the upstream XTLS installer
+- creates a VLESS/REALITY inbound
+- generates the X25519 key pair and short ID
+- keeps the private key on the VPS only
+- installs the Paydar sync agent/timer
+- prints the public key, short ID, SNI, port and public IP to enter in the admin panel
 
 ## Security notes
 
-- This repository is public. Never commit server private keys, passwords, database credentials, tokens, or production UUID lists.
-- REALITY private keys belong only on the relevant server, never in this control-plane repository.
-- The dashboard stores only the public-key side of node metadata.
-- Keep business websites and unrelated production services on infrastructure separate from VPN nodes.
-- Use the software only on systems and networks you are authorized to operate.
+- This repository is public. Never commit REALITY private keys, passwords, DB credentials, API secrets, production UUID lists, or payment credentials.
+- REALITY private keys stay only on the node.
+- The control plane stores only public node metadata required to build client links.
+- Keep unrelated business sites on infrastructure separate from VPN nodes.
+- Rotate `NODE_AGENT_SECRET` if a node is compromised.
+- Use the software only on infrastructure and networks you are authorized to operate.
 
-## Not implemented yet
+## Remaining production integrations
 
-- Payment gateway / automatic checkout
-- Automated VPS provisioning
-- Per-node secure agent credentials (current MVP uses one `NODE_AGENT_SECRET`)
-- Accurate traffic accounting from Xray
-- Monitoring probes from multiple geographic/ISP vantage points
-- Automatic node quarantine based on multiple independent probes
-- Database migrations for production release management (MVP currently uses `prisma db push`)
+These require external accounts/credentials rather than more repository code:
 
-## Current status
+- production PostgreSQL instance
+- deployed control-plane domain
+- at least one VPS/VM node
+- optional payment gateway credentials/webhook
+- optional multi-region/ISP monitoring probes
+- accurate traffic accounting source from the data plane
 
-MVP control plane is implemented on branch `feat/paydar-control-plane`. The next infrastructure milestone is connecting the first authorized VPS node and validating end-to-end provisioning, subscription refresh, revocation, and health reporting.
+The repository is designed so these can be attached without changing customer subscription URLs.
