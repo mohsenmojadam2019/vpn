@@ -10,29 +10,28 @@ function configured(name: string) {
 }
 
 export async function GET() {
-  const checks = {
-    database: false,
-    authSecret: configured('AUTH_SECRET'),
-    adminEmail: configured('ADMIN_EMAIL'),
-    adminPasswordHash: configured('ADMIN_PASSWORD_HASH'),
-    nodeAgentSecret: configured('NODE_AGENT_SECRET'),
-    cronSecret: configured('CRON_SECRET'),
-  };
+  const configReady = [
+    'AUTH_SECRET',
+    'ADMIN_EMAIL',
+    'ADMIN_PASSWORD_HASH',
+    'NODE_AGENT_SECRET',
+    'CRON_SECRET',
+  ].every(configured);
 
+  let databaseReady = false;
   try {
     await db.$queryRaw`SELECT 1`;
-    checks.database = true;
+    databaseReady = true;
   } catch {
-    checks.database = false;
+    databaseReady = false;
   }
 
-  const ready = Object.values(checks).every(Boolean);
+  const ready = configReady && databaseReady;
   return NextResponse.json(
     {
       service: 'paydar-control-plane',
       status: ready ? 'ok' : 'degraded',
       ready,
-      checks,
       timestamp: new Date().toISOString(),
     },
     {
